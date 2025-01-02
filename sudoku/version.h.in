@@ -1,0 +1,16 @@
+#ifndef _VERSION_H
+#define _VERSION_H
+
+// #define SUDOKU_VERSION_MAJOR @Sudoku_VERSION_MAJOR@
+// #define SUDOKU_VERSION_MINOR @Sudoku_VERSION_MINOR@
+// #define SUDOKU_VERSION_PATCH @Sudoku_VERSION_PATCH@
+// #define SUDOKU_VERSION_TWEAK @Sudoku_VERSION_TWEAK@
+
+#define SUDOKU_VERSION_MAJOR 0
+#define SUDOKU_VERSION_MINOR 1
+#define SUDOKU_VERSION_PATCH 0
+#define SUDOKU_VERSION_TWEAK 0
+
+void printVersion(bool appendLine = true);
+
+#endif
