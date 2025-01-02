@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <stdio.h>
 
 #include "version.h"
@@ -30,6 +31,12 @@ int main(int argc, char *argv[])
         printf("readFile(%s, %zu, %p) = %s\n", argv[1], size, grid, printError(error).c_str());
 #endif
         printf("Starting Grid:\n");
+        printGrid(grid, size);
+
+        bool solved = false;
+        error = solveRecursive(grid, size, &solved, 0, 0);
+
+        printf("Ending Grid:\n");
         printGrid(grid, size);
 
         freeResources(grid, size);
@@ -80,18 +87,18 @@ namespace sudoku
 
             for (unsigned int i = 0; i < tempUint && rtnVal.code == 0; i++)
             {
-#ifdef DEBUG
-                printf("Reading line #%u\n", i + 1);
-#endif
+                // #ifdef DEBUG
+                //                 printf("Reading line #%u\n", i + 1);
+                // #endif
                 getline(fin, tempStr, '\n');
                 uint8_t *row = NULL;
-#ifdef DEBUG
-                printf("Parsing line \"%s\"\n", tempStr.c_str());
-#endif
-                rtnVal = readLineSpaces(tempStr, *size, &row);
-#ifdef DEBUG
-                printf("Parsed line \"%s\"\n", tempStr.c_str());
-#endif
+                // #ifdef DEBUG
+                //                 printf("Parsing line \"%s\"\n", tempStr.c_str());
+                // #endif
+                rtnVal = parseLine(tempStr, *size, &row);
+                // #ifdef DEBUG
+                //                 printf("Parsed line \"%s\"\n", tempStr.c_str());
+                // #endif
                 (*grid)[i] = row;
             }
         }
@@ -101,38 +108,140 @@ namespace sudoku
         return rtnVal;
     }
 
-    error_t readLineSpaces(const char *line, const size_t size, uint8_t **row)
+    error_t parseLine(const char *line, const size_t size, uint8_t **row, const char delimiter)
     {
-        return readLineSpaces(std::string(line), size, row);
+        return parseLine(std::string(line), size, row, delimiter);
     }
 
-    error_t readLineSpaces(const std::string line, const size_t size, uint8_t **row)
+    error_t parseLine(const std::string line, const size_t size, uint8_t **row, const char delimiter)
     {
         error_t rtnVal{0, ""};
         *row = new uint8_t[size];
 
-        size_t start = 0;
-        size_t stop;
-        for (int i = 0; i < size; i++)
+        std::stringstream ss(line);
+        std::string temp;
+        for (size_t i = 0; i < size; i++)
         {
-            stop = line.find(' ', start);
-            #ifdef DEBUG
-            printf("Start: %zu\n", start);
-            printf("Stop: %zu\n", stop);
-#endif
-            const char *sub = line.substr(start, stop - start+1).c_str();
-#ifdef DEBUG
-            printf("Sub: %s\n", sub);
-#endif
-            (*row)[i] = (uint8_t)atoi(sub);
-            start++;
+            getline(ss, temp, ' ');
+            (*row)[i] = (uint8_t)atoi(temp.c_str());
         }
 
         return rtnVal;
     }
 
+    error_t solveRecursive(uint8_t **grid, const size_t size, bool *solved, const uint16_t col, const uint16_t row)
+    {
+        error_t rtnVal{0, ""};
+        uint16_t nextCol = col + 1;
+        uint16_t nextRow = row;
+        if (nextCol >= size)
+        {
+            nextCol = 0;
+            nextRow++;
+        }
+
+        if (row >= size)
+        {
+#ifdef DEBUG
+            static size_t count = 1;
+            printf("Mid-Run Grid #%zu:\n", count++);
+            printGrid(grid, size);
+#endif
+            *solved = validateGrid(grid, size);
+        }
+        else if (grid[col][row] == 0)
+        {
+            for (uint8_t i = 1; i <= size && !*solved && rtnVal.code == 0; i++)
+            {
+                grid[col][row] = i;
+                printf("grid[%u][%u] = %u\n", col, row, i);
+                if (validateGrid(grid, size))
+                {
+                    rtnVal = solveRecursive(grid, size, solved, nextCol, nextRow);
+                }
+            }
+
+            if (!*solved)
+            {
+                grid[col][row] = 0;
+            }
+        }
+        else
+        {
+            rtnVal = solveRecursive(grid, size, solved, nextCol, nextRow);
+        }
+
+        return rtnVal;
+    }
+
+    bool validateGrid(uint8_t **grid, const size_t size)
+    {
+        bool valid = true;
+
+        for (uint16_t i = 0; i < size && valid; i++)
+        {
+            valid &= validateRow(grid, size, i);
+            valid &= validateCol(grid, size, i);
+        }
+
+        return valid;
+    }
+
+    bool validateRow(uint8_t **grid, const size_t size, const uint16_t row)
+    {
+        bool valid = true;
+
+        for (uint16_t i = 0; i < size && valid; i++)
+        {
+            if (grid[i][row] == 0)
+            {
+                continue;
+            }
+            for (uint16_t j = i + 1; j < size && valid; j++)
+            {
+                if (grid[j][row] == 0)
+                {
+                    continue;
+                }
+                else if (grid[i][row] == grid[j][row])
+                {
+                    valid = false;
+                }
+            }
+        }
+
+        return valid;
+    }
+
+    bool validateCol(uint8_t **grid, const size_t size, const uint16_t col)
+    {
+        bool valid = true;
+
+        for (uint16_t i = 0; i < size && valid; i++)
+        {
+            if (grid[col][i] == 0)
+            {
+                continue;
+            }
+            for (uint16_t j = i + 1; j < size && valid; j++)
+            {
+                if (grid[col][j] == 0)
+                {
+                    continue;
+                }
+                else if (grid[col][i] == grid[col][j])
+                {
+                    valid = false;
+                }
+            }
+        }
+
+        return valid;
+    }
+
     void printGrid(uint8_t **grid, const size_t size)
     {
+#ifdef DEBUG
         if (grid == NULL)
         {
             printf("Grid is NULL\n");
@@ -140,17 +249,21 @@ namespace sudoku
         else
         {
             printf("Grid is %p\n", grid);
+#endif
             for (size_t i = 0; i < size; i++)
             {
-                printf("grid[%zu] is %p\n", i, grid[i]);
-
+#ifdef DEBUG
+                // printf("grid[%zu] is %p\n", i, grid[i]);
+#endif
                 for (size_t j = 0; grid[i] != NULL && j < size; j++)
                 {
                     printf((j > 0 ? " %u" : "%u"), grid[i][j]);
                 }
                 printf("\n");
             }
+#ifdef DEBUG
         }
+#endif
     }
 
     void freeResources(uint8_t **grid, const size_t size)
